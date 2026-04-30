@@ -1,18 +1,54 @@
 # GitHub Issues Agent — How to Use
 
-This agent manages GitHub issues for canvas_toolbox as a local, file-based workflow. No browser required — issues live in `.github_issues/` as readable markdown files with full comment history.
+A small Python toolkit that manages GitHub issues for any repo as a local, file-based workflow. No browser required — issues live in `.github_issues/` as readable markdown files with full comment history. Auto-detects the target repo from the directory's git remote.
 
 ---
 
 ## Setup
 
-Make sure `.env` has your GitHub token:
-```
-GH_TOKEN=ghp_xxxxxxxxxxxxxxxxxxxx
+This is a public repo — **use your own GitHub credentials, not someone else's**. Two supported options:
+
+### Option A — `gh` CLI (recommended)
+
+Install the [GitHub CLI](https://cli.github.com/) and authenticate once:
+
+```bash
+gh auth login
 ```
 
-Token scope needed: `public_repo` (this repo is public). Generate at:
-GitHub → Settings → Developer Settings → Personal Access Tokens → Tokens (classic) → New token.
+This stores an OAuth token in your system keyring (no plaintext token on disk). Export it for the scripts:
+
+```bash
+export GH_TOKEN=$(gh auth token)
+```
+
+Or add that line to your shell profile so it's always set.
+
+### Option B — Fine-grained Personal Access Token in `.env`
+
+Generate a [fine-grained token](https://github.com/settings/personal-access-tokens/new) scoped to the specific repo(s) you want to manage. Required permissions:
+
+- **Repository access**: only the repo(s) you'll triage
+- **Permissions** → **Issues**: Read and write
+- **Permissions** → **Metadata**: Read-only (auto-selected)
+
+Then:
+
+```bash
+echo 'GH_TOKEN=github_pat_xxxxxxxxxxxxxxxx' > .env
+```
+
+`.env` is gitignored — never commit a token.
+
+> **Avoid classic PATs** (`ghp_...`) for this. Classic tokens grant access to every repo you can read; a fine-grained token or `gh auth` flow is scoped and safer for a tool that runs on your behalf. If you must use a classic PAT, the minimum scope is `public_repo` for public repos or `repo` for private.
+
+### Optional: pin the repo
+
+`gh_sync.py` and `gh_close.py` auto-detect the repo from the local `git remote`. To target a different repo from inside any directory, set:
+
+```bash
+export GITHUB_REPO=owner/repo
+```
 
 ---
 
@@ -20,7 +56,7 @@ GitHub → Settings → Developer Settings → Personal Access Tokens → Tokens
 
 ### 1. Sync issues at the start of each session
 ```bash
-uv run python gh_issues_agent/tools/gh_sync.py
+uv run tools/gh_sync.py
 ```
 Pulls all open issues + comments into `.github_issues/open/` as markdown files. Issues closed since your last sync are moved to `.github_issues/closed/` automatically.
 
@@ -28,7 +64,7 @@ Pulls all open issues + comments into `.github_issues/open/` as markdown files. 
 ```bash
 ls .github_issues/open/
 ```
-Open `gh_issues_agent/knowledge/agile_sprint.md` — find the active sprint and work the next `[ ]` issue in order. Read the full issue file (description + comments) before writing any code.
+Open `knowledge/agile_sprint.md` — find the active sprint and work the next `[ ]` issue in order. Read the full issue file (description + comments) before writing any code.
 
 ### 3. Fix it and commit
 Reference the issue number in your commit message:
@@ -40,17 +76,17 @@ Closes #1"
 GitHub will auto-close the issue when this is pushed if you use `Closes #N`, `Fixes #N`, or `Resolves #N` in the commit message or PR body.
 
 ### 4. Update the sprint
-Open `gh_issues_agent/knowledge/agile_sprint.md` and mark the issue `[x]` with the commit hash. If all issues in the sprint are `[x]`, mark the sprint Complete and move it to the Completed Sprints section.
+Open `knowledge/agile_sprint.md` and mark the issue `[x]` with the commit hash. If all issues in the sprint are `[x]`, mark the sprint Complete and move it to the Completed Sprints section.
 
 ### 5. Close the issue explicitly (with context)
 ```bash
-uv run python gh_issues_agent/tools/gh_close.py --issue 1 --comment "Fixed in commit abc123. Added homepage filter to cmd_init() orphan list."
+uv run tools/gh_close.py --issue 1 --comment "Fixed in commit abc123. Added homepage filter to cmd_init() orphan list."
 ```
 This posts the comment to GitHub, closes the issue, and moves the local file from `open/` to `closed/`.
 
 ### 6. Re-sync to confirm and pick the next issue
 ```bash
-uv run python gh_issues_agent/tools/gh_sync.py
+uv run tools/gh_sync.py
 ```
 
 ---
@@ -60,12 +96,12 @@ uv run python gh_issues_agent/tools/gh_sync.py
 Load the agent context before asking Claude to help with an issue:
 
 1. Open the issue file: `.github_issues/open/issue-NNNN-slug.md`
-2. Tell Claude: *"Read gh_issues_agent/gh_issues_agent.md and gh_issues_agent/gh_issues_agent.json, then help me work through issue #N."*
+2. Tell Claude: *"Read gh_issues_agent.md and gh_issues_agent.json, then help me work through issue #N."*
 3. Claude will have the triage framework, label taxonomy, and close templates from the JSON — it knows what a good close comment looks like.
 
 For triage across all open issues:
 
-> *"Read gh_issues_agent/knowledge/gh_issues_agent_mission.md and all files in .github_issues/open/, then propose the next issue to work on and why."*
+> *"Read knowledge/gh_issues_agent_mission.md and all files in .github_issues/open/, then propose the next issue to work on and why."*
 
 ---
 
@@ -73,7 +109,7 @@ For triage across all open issues:
 
 ### gh_sync.py
 ```bash
-uv run python gh_issues_agent/tools/gh_sync.py
+uv run tools/gh_sync.py
 ```
 - Pulls all open issues + comments from GitHub
 - Writes `.github_issues/open/issue-NNNN-slug.md` for each
@@ -82,8 +118,8 @@ uv run python gh_issues_agent/tools/gh_sync.py
 
 ### gh_close.py
 ```bash
-uv run python gh_issues_agent/tools/gh_close.py --issue N
-uv run python gh_issues_agent/tools/gh_close.py --issue N --comment "Fixed in commit abc123."
+uv run tools/gh_close.py --issue N
+uv run tools/gh_close.py --issue N --comment "Fixed in commit abc123."
 ```
 - Posts comment to issue (if `--comment` provided)
 - Closes issue on GitHub
@@ -95,7 +131,7 @@ Always include `--comment` with a commit hash or description — it's the audit 
 
 ## Issue Triage Reference
 
-See `gh_issues_agent/knowledge/gh_issues_agent_mission.md` for the full milestone plan. Quick version:
+See `knowledge/gh_issues_agent_mission.md` for the full milestone plan. Quick version:
 
 | Priority | Label / Type | Action |
 |---|---|---|
@@ -137,7 +173,7 @@ gh_issues_agent/
 → GH_TOKEN is missing, expired, or lacks `public_repo` scope. Regenerate.
 
 **gh_sync.py returns 404**
-→ Repo not detected correctly. Set `GITHUB_REPO=chaz-clark/canvas_toolbox` in `.env`.
+→ Repo not detected correctly. Set `GITHUB_REPO=owner/repo` in `.env` or as an exported env var.
 
 **Issue file missing after sync**
 → The issue was closed on GitHub directly. Check `.github_issues/closed/`.

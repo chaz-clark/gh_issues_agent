@@ -3,18 +3,15 @@
 ## Agent Instructions
 1. Read this file for mission, principles, quickstart, and pitfalls.
 2. Parse `gh_issues_agent.json` for structured data: label taxonomy, API patterns, file format spec, and validation.
-3. Read `gh_issues_agent/knowledge/agile_sprint.md` to understand the current sprint, what is in progress, and what is next. Always check sprint status before proposing work.
-4. Read `gh_issues_agent/knowledge/gh_issues_agent_mission.md` for the full milestone rationale and issue triage philosophy.
-5. Read `gh_issues_agent/knowledge/canvas_api_gotchas.md` before writing any Canvas API code. Many failures are silent — the gotchas file documents encoding quirks, ID portability rules, and field-level traps that are not obvious from the Canvas docs.
-6. Read `gh_issues_agent/knowledge/sprint_qc.md` before committing any sprint fix. QC must pass before pushing or tagging.
-7. Read `gh_issues_agent/knowledge/semantic_versioning.md` before tagging any sprint completion. Never tag without passing QC and confirming the correct version bump.
-8. Do not parse this Markdown for structured data.
+3. Read `knowledge/agile_sprint.md` to understand the current sprint, what is in progress, and what is next. Always check sprint status before proposing work.
+4. Read `knowledge/gh_issues_agent_mission.md` for the full milestone rationale and issue triage philosophy.
+5. Do not parse this Markdown for structured data.
 
 ---
 
 ## Mission
 
-Manage GitHub issues for the canvas_toolbox repo as a local, file-based workflow. Pull issues down as readable markdown, triage by label, work through fixes and features in priority order, and close issues with a linked commit reference when done.
+Manage GitHub issues for any repo as a local, file-based workflow. Pull issues down as readable markdown, triage by label, work through fixes and features in priority order, and close issues with a linked commit reference when done. Auto-detects the target repo from the git remote of the directory the tools are run in.
 
 **What it does**: Syncs open GitHub issues + comments into `.github_issues/open/` as markdown files, helps triage and prioritize work by label, and closes issues via the GitHub API when resolved.
 
@@ -26,16 +23,14 @@ Manage GitHub issues for the canvas_toolbox repo as a local, file-based workflow
 
 ## Agent Quickstart
 
-1. **Check the sprint**: Read `gh_issues_agent/knowledge/agile_sprint.md` — find the active sprint, identify the next `[ ]` issue in order
+1. **Check the sprint**: Read `knowledge/agile_sprint.md` — find the active sprint, identify the next `[ ]` issue in order
 2. **Sync issues**: Run `gh_sync.py` to pull all open issues + comments into `.github_issues/open/`
 3. **Pick work**: Open the `.md` file for the next issue in the sprint plan, read the full description + comments
 4. **Fix it**: Make the code change — do not commit yet
-5. **QC**: Run the sprint QC tests from `gh_issues_agent/knowledge/sprint_qc.md` against the sandbox course (`CANVAS_SANDBOX_ID`). All levels must pass before committing.
-6. **Commit**: Only after QC passes — commit with a descriptive message referencing the issue (`fixes #42`)
-7. **Close**: Run `gh_close.py --issue 42 --comment "Fixed in commit abc123."` — posts comment, closes on GitHub, moves file to `closed/`
-8. **Update the sprint**: Mark the issue `[x]` in `agile_sprint.md` with the commit hash
-9. **Sprint complete?**: If all issues are `[x]`, run full QC sign-off from `sprint_qc.md`, then tag per `semantic_versioning.md`
-10. **Re-sync**: Run `gh_sync.py` to confirm all sprint issues are in `closed/`
+5. **Commit**: After verifying the fix locally — commit with a descriptive message referencing the issue (`Fixes #42`)
+6. **Close**: Run `gh_close.py --issue 42 --comment "Fixed in commit abc123."` — posts comment, closes on GitHub, moves file to `closed/`
+7. **Update the sprint**: Mark the issue `[x]` in `agile_sprint.md` with the commit hash
+8. **Re-sync**: Run `gh_sync.py` to confirm all sprint issues are in `closed/`
 
 ---
 
@@ -72,7 +67,7 @@ The `bug` label is priority 1 — resolve all open bugs before picking up enhanc
 **Why**: A toolkit with broken behavior erodes trust faster than a toolkit with fewer features. Users who hit a bug and file it deserve a fast response.
 
 ### 4. Batch Enhancements by Topic
-Group `enhancement` issues by the tool they affect before starting work — fix `canvas_sync.py` enhancements together, `blueprint_sync.py` enhancements together.
+Group `enhancement` issues by the file or module they affect before starting work — keep related changes in one pass instead of context-switching across modules.
 
 **Why**: Context switching between tools mid-session costs more than the overhead of grouping. Related enhancements often share a code path and can be addressed in one pass.
 
@@ -86,7 +81,7 @@ The `open/` and `closed/` files are generated output — treat them as read-only
 ## How to Use This Agent
 
 ### Prerequisites
-- `.env` with `GH_TOKEN` set (repo or public_repo scope on `chaz-clark/canvas_toolbox`)
+- `.env` with `GH_TOKEN` set (or `GH_TOKEN=$(gh auth token)` exported in the shell). `repo` scope for private repos, `public_repo` for public.
 - `uv sync` completed (requests and python-dotenv are already in `pyproject.toml`)
 - `.github_issues/` folder exists (created on first sync)
 
@@ -94,23 +89,23 @@ The `open/` and `closed/` files are generated output — treat them as read-only
 
 | Tool | Purpose | When to use |
 |---|---|---|
-| `gh_issues_agent/tools/gh_sync.py` | Pull all open issues + comments → `.github_issues/open/` | At the start of each work session and after any push |
-| `gh_issues_agent/tools/gh_close.py` | Post comment + close issue + move local file to `closed/` | After a fix is committed and pushed |
+| `tools/gh_sync.py` | Pull all open issues + comments → `.github_issues/open/` | At the start of each work session and after any push |
+| `tools/gh_close.py` | Post comment + close issue + move local file to `closed/` | After a fix is committed and pushed |
 
 ### Workflow
 
 ```bash
 # Start of session
-uv run python gh_issues_agent/tools/gh_sync.py
+uv run tools/gh_sync.py
 
 # Browse open issues
 ls .github_issues/open/
 
 # After fixing issue #42 and pushing commit abc123
-uv run python gh_issues_agent/tools/gh_close.py --issue 42 --comment "Fixed in commit abc123. Canvas sync now handles empty module edge case."
+uv run tools/gh_close.py --issue 42 --comment "Fixed in commit abc123. <short description of the fix>"
 
 # Re-sync to confirm and pick next issue
-uv run python gh_issues_agent/tools/gh_sync.py
+uv run tools/gh_sync.py
 ```
 
 ### Token Scopes Required
@@ -189,7 +184,7 @@ Generate at: Canvas → Account → Settings → Approved Integrations → New A
 
 Pre-run:
 - [ ] `GH_TOKEN` set in `.env`
-- [ ] Token has `repo` or `public_repo` scope on `chaz-clark/canvas_toolbox`
+- [ ] Token has `repo` or `public_repo` scope on the target repo
 - [ ] `uv sync` completed (requests, python-dotenv installed)
 
 Post-sync:
@@ -208,10 +203,7 @@ Post-close:
 
 ### Agent Files
 - `gh_issues_agent.json` — label taxonomy, API patterns, file format spec
-- `gh_issues_agent/tools/gh_sync.py` — sync script
-- `gh_issues_agent/tools/gh_close.py` — close script
-- `gh_issues_agent/knowledge/github_issues_reference.md` — GitHub API reference notes
+- `tools/gh_sync.py` — sync script
+- `tools/gh_close.py` — close script
+- `knowledge/github_issues_reference.md` — GitHub API reference notes
 
-### Related Agents
-- `canvas_course_expert` — for issues related to course audit quality
-- `canvas_content_sync` — for issues related to content push failures

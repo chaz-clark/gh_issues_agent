@@ -1,3 +1,11 @@
+#!/usr/bin/env -S uv run --script
+# /// script
+# requires-python = ">=3.10"
+# dependencies = [
+#   "requests>=2.31",
+#   "python-dotenv>=1.0",
+# ]
+# ///
 """
 gh_close.py
 
@@ -5,8 +13,9 @@ Post a comment and close a GitHub issue. Moves the local file from
 .github_issues/open/ to .github_issues/closed/.
 
 Usage:
-    uv run python gh_issues_agent/tools/gh_close.py --issue 42
-    uv run python gh_issues_agent/tools/gh_close.py --issue 42 --comment "Fixed in commit abc123."
+    uv run tools/gh_close.py --issue 42
+    uv run tools/gh_close.py --issue 42 --comment "Fixed in commit abc123."
+    ./tools/gh_close.py --issue 42 --comment "..."   # if marked executable
 
 Env vars required:
     GH_TOKEN       GitHub personal access token (repo or public_repo scope)

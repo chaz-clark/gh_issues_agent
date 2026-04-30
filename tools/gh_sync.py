@@ -1,3 +1,11 @@
+#!/usr/bin/env -S uv run --script
+# /// script
+# requires-python = ">=3.10"
+# dependencies = [
+#   "requests>=2.31",
+#   "python-dotenv>=1.0",
+# ]
+# ///
 """
 gh_sync.py
 
@@ -5,7 +13,8 @@ Pull all open GitHub issues + comments into .github_issues/open/ as markdown fil
 Moves files for issues no longer open to .github_issues/closed/.
 
 Usage:
-    uv run python gh_issues_agent/tools/gh_sync.py
+    uv run tools/gh_sync.py
+    ./tools/gh_sync.py        # if marked executable
 
 Env vars required:
     GH_TOKEN       GitHub personal access token (repo or public_repo scope)
