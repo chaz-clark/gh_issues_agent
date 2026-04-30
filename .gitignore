@@ -1,2 +1,8 @@
 # Local drafts — never committed
 knowledge/medium_draft_*.md
+
+# Local clone of Make-AI-Agents — pulled fresh, never tracked
+make-ai-agents/
+
+# Local agent context — not shared with the repo
+AGENTS.md
